@@ -1,0 +1,111 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Distribution / packaging
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Windsurf
+.windsurfrules
+.windsurf/
+
+# Config files
+.config/
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Data files
+/data/
+!/src/data/
+datasets/
+*.csv
+*.jpg
+*.jpeg
+*.png
+*.tif
+*.tiff
+*.h5
+*.hdf5
+*.npy
+*.npz
+# Except example images
+!examples/*.jpg
+!examples/*.jpeg
+!examples/*.png
+
+# Model files
+/models/
+!/src/models/
+*.pth
+*.pt
+*.h5
+*.onnx
+*.pb
+
+# Logs
+logs/
+*.log
+tensorboard/
+runs/
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Specific to this project
+compressed_images/
+results/
+temp/
