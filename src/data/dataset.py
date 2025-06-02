@@ -59,7 +59,8 @@ def get_data_loaders(data_dir, batch_size=32, img_size=256, num_workers=4):
     train_transform = transforms.Compose([
         transforms.Resize((img_size, img_size)),
         transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(10),
+        transforms.RandomVerticalFlip(),
+        transforms.RandomRotation(30),  # Increased rotation range from 10 to 30 degrees
         transforms.ColorJitter(brightness=0.1, contrast=0.1),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])

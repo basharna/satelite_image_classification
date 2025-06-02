@@ -25,32 +25,53 @@ def resize_and_convert(img_path, output_path, target_size=(256, 256), convert_gr
         print(f"Error processing {img_path}: {e}")
         return False
 
-def apply_augmentation(img_path, output_path, target_size=(256, 256)):
+def apply_augmentation(img_path, output_path_base, target_size=(256, 256)):
     """
-    Apply data augmentation to an image
+    Apply data augmentation to an image and save multiple augmented versions
     """
     try:
         img = Image.open(img_path).convert('RGB')
         img = img.resize(target_size)
+        base_filename = os.path.splitext(os.path.basename(output_path_base))[0]
+        ext = os.path.splitext(output_path_base)[1]
+        output_dir = os.path.dirname(output_path_base)
         
-        # Random rotation
-        if random.random() > 0.5:
-            angle = random.randint(-10, 10)
-            img = img.rotate(angle)
+        # Save original resized image
+        img.save(output_path_base)
         
-        # Random brightness adjustment
-        if random.random() > 0.5:
-            factor = random.uniform(0.8, 1.2)
-            enhancer = ImageEnhance.Brightness(img)
-            img = enhancer.enhance(factor)
+        # Apply rotation (30 degrees)
+        angle = random.randint(-30, 30)  # Increased rotation range
+        rotated_img = img.rotate(angle)
+        rotated_path = os.path.join(output_dir, f"{base_filename}_rotated{ext}")
+        rotated_img.save(rotated_path)
         
-        # Random contrast adjustment
-        if random.random() > 0.5:
-            factor = random.uniform(0.8, 1.2)
-            enhancer = ImageEnhance.Contrast(img)
-            img = enhancer.enhance(factor)
-            
-        img.save(output_path)
+        # Apply horizontal flip
+        h_flipped_img = ImageOps.mirror(img)
+        h_flipped_path = os.path.join(output_dir, f"{base_filename}_hflip{ext}")
+        h_flipped_img.save(h_flipped_path)
+        
+        # Apply vertical flip
+        v_flipped_img = ImageOps.flip(img)
+        v_flipped_path = os.path.join(output_dir, f"{base_filename}_vflip{ext}")
+        v_flipped_img.save(v_flipped_path)
+        
+        # Apply both flips (horizontal + vertical)
+        hv_flipped_img = ImageOps.flip(ImageOps.mirror(img))
+        hv_flipped_path = os.path.join(output_dir, f"{base_filename}_hvflip{ext}")
+        hv_flipped_img.save(hv_flipped_path)
+        
+        # Apply brightness and contrast adjustments
+        bright_factor = random.uniform(0.8, 1.2)
+        contrast_factor = random.uniform(0.8, 1.2)
+        
+        enhancer = ImageEnhance.Brightness(img)
+        bright_img = enhancer.enhance(bright_factor)
+        enhancer = ImageEnhance.Contrast(bright_img)
+        adjusted_img = enhancer.enhance(contrast_factor)
+        
+        adjusted_path = os.path.join(output_dir, f"{base_filename}_adjusted{ext}")
+        adjusted_img.save(adjusted_path)
+        
         return True
     except Exception as e:
         print(f"Error augmenting {img_path}: {e}")
@@ -104,8 +125,7 @@ def process_horizon_dataset(raw_data_dir, processed_data_dir, target_size=(256, 
         
         # Apply augmentations for training set
         if apply_augmentations:
-            aug_filename = f"aug_{filename}"
-            aug_output_path = os.path.join(train_dir, 'horizon', aug_filename)
+            aug_output_path = os.path.join(train_dir, 'horizon', filename)
             apply_augmentation(img_path, aug_output_path, target_size)
     
     for img_path, out_dir in zip(val_horizon + test_horizon, 
@@ -128,8 +148,7 @@ def process_horizon_dataset(raw_data_dir, processed_data_dir, target_size=(256, 
         
         # Apply augmentations for training set
         if apply_augmentations:
-            aug_filename = f"aug_{filename}"
-            aug_output_path = os.path.join(train_dir, 'no_horizon', aug_filename)
+            aug_output_path = os.path.join(train_dir, 'no_horizon', filename)
             apply_augmentation(img_path, aug_output_path, target_size)
     
     for img_path in val_space:
@@ -149,12 +168,12 @@ def process_horizon_dataset(raw_data_dir, processed_data_dir, target_size=(256, 
     print(f"Test: {len(test_horizon)} horizon, {len(test_space)} no_horizon")
     
     if apply_augmentations:
-        print(f"Applied augmentations to training set, doubling its size")
+        print(f"Applied augmentations to training set, creating 5 additional versions of each image (original, rotated, h-flipped, v-flipped, hv-flipped, and brightness/contrast adjusted)")
     
     return {
         'train': {
-            'horizon': len(train_horizon) * (2 if apply_augmentations else 1),
-            'no_horizon': len(train_space) * (2 if apply_augmentations else 1)
+            'horizon': len(train_horizon) * (6 if apply_augmentations else 1),
+            'no_horizon': len(train_space) * (6 if apply_augmentations else 1)
         },
         'val': {
             'horizon': len(val_horizon),
