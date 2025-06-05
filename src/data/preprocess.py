@@ -8,24 +8,25 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src.utils.common import create_dir, set_seed
 
-def resize_and_convert(img_path, output_path, target_size=(256, 256), convert_grayscale=False):
+def resize_and_convert(img_path, output_path, target_size=(224, 224)):
     """
-    Resize an image and optionally convert to grayscale
+    Resize an image to the target size
+    
+    Args:
+        img_path: Path to the input image
+        output_path: Path to save the processed image
+        target_size: Size to resize the image to (224x224 or 256x256 as per PRD)
     """
     try:
         img = Image.open(img_path).convert('RGB')
         img = img.resize(target_size)
-        
-        if convert_grayscale:
-            img = ImageOps.grayscale(img)
-            
         img.save(output_path)
         return True
     except Exception as e:
         print(f"Error processing {img_path}: {e}")
         return False
 
-def apply_augmentation(img_path, output_path_base, target_size=(256, 256)):
+def apply_augmentation(img_path, output_path_base, target_size=(224, 224)):
     """
     Apply data augmentation to an image and save multiple augmented versions
     """
@@ -77,11 +78,20 @@ def apply_augmentation(img_path, output_path_base, target_size=(256, 256)):
         print(f"Error augmenting {img_path}: {e}")
         return False
 
-def process_horizon_dataset(raw_data_dir, processed_data_dir, target_size=(256, 256), 
-                            train_split=0.8, val_split=0.1, test_split=0.1, 
-                            apply_augmentations=True, convert_grayscale=False):
+def process_horizon_dataset(classification_sets_dir, processed_data_dir, target_size=(224, 224), 
+                            train_split=0.7, val_split=0.15, test_split=0.15, 
+                            apply_augmentations=True):
     """
-    Process the horizon detection dataset
+    Process the horizon detection dataset from the classification_sets directory
+    
+    Args:
+        classification_sets_dir: Directory containing the classification sets
+        processed_data_dir: Directory to save processed data
+        target_size: Size to resize images to (224x224 or 256x256 as per PRD)
+        train_split: Proportion of data for training
+        val_split: Proportion of data for validation
+        test_split: Proportion of data for testing
+        apply_augmentations: Whether to apply data augmentation
     """
     # Ensure splits sum to 1
     assert abs(train_split + val_split + test_split - 1.0) < 1e-10, "Splits must sum to 1"
@@ -96,92 +106,96 @@ def process_horizon_dataset(raw_data_dir, processed_data_dir, target_size=(256, 
         create_dir(os.path.join(dir_path, 'horizon'))
         create_dir(os.path.join(dir_path, 'no_horizon'))
     
-    # Get all image files
-    horizon_files = [os.path.join(raw_data_dir, 'horizon', f) for f in os.listdir(os.path.join(raw_data_dir, 'horizon')) if f.endswith(('.jpg', '.jpeg', '.png'))]
-    space_files = [os.path.join(raw_data_dir, 'space', f) for f in os.listdir(os.path.join(raw_data_dir, 'space')) if f.endswith(('.jpg', '.jpeg', '.png'))]
+    # Get all image files from the classification_sets directory
+    horizon_dir = os.path.join(classification_sets_dir, 'horizon_detection', 'horizon')
+    no_horizon_dir = os.path.join(classification_sets_dir, 'horizon_detection', 'no_horizon')
+    
+    horizon_files = [os.path.join(horizon_dir, f) for f in os.listdir(horizon_dir) 
+                    if f.endswith(('.jpg', '.jpeg', '.png')) and not f.startswith('.')]
+    no_horizon_files = [os.path.join(no_horizon_dir, f) for f in os.listdir(no_horizon_dir) 
+                       if f.endswith(('.jpg', '.jpeg', '.png')) and not f.startswith('.')]
     
     # Shuffle files
     random.shuffle(horizon_files)
-    random.shuffle(space_files)
+    random.shuffle(no_horizon_files)
     
-    # Split horizon files
+    # Split into train, validation, and test sets
     n_horizon = len(horizon_files)
     train_horizon = horizon_files[:int(n_horizon * train_split)]
     val_horizon = horizon_files[int(n_horizon * train_split):int(n_horizon * (train_split + val_split))]
     test_horizon = horizon_files[int(n_horizon * (train_split + val_split)):]
     
-    # Split space files (no horizon)
-    n_space = len(space_files)
-    train_space = space_files[:int(n_space * train_split)]
-    val_space = space_files[int(n_space * train_split):int(n_space * (train_split + val_split))]
-    test_space = space_files[int(n_space * (train_split + val_split)):]
+    n_no_horizon = len(no_horizon_files)
+    train_no_horizon = no_horizon_files[:int(n_no_horizon * train_split)]
+    val_no_horizon = no_horizon_files[int(n_no_horizon * train_split):int(n_no_horizon * (train_split + val_split))]
+    test_no_horizon = no_horizon_files[int(n_no_horizon * (train_split + val_split)):]
     
     # Process horizon images
     print("Processing horizon images...")
     for img_path in tqdm(train_horizon):
         filename = os.path.basename(img_path)
         output_path = os.path.join(train_dir, 'horizon', filename)
-        resize_and_convert(img_path, output_path, target_size, convert_grayscale)
+        resize_and_convert(img_path, output_path, target_size)
         
         # Apply augmentations for training set
         if apply_augmentations:
             aug_output_path = os.path.join(train_dir, 'horizon', filename)
             apply_augmentation(img_path, aug_output_path, target_size)
     
-    for img_path, out_dir in zip(val_horizon + test_horizon, 
-                                [val_dir, test_dir] * len(val_horizon + test_horizon)):
-        if img_path in val_horizon:
-            out_dir = val_dir
-        else:
-            out_dir = test_dir
-        
+    for img_path in val_horizon:
         filename = os.path.basename(img_path)
-        output_path = os.path.join(out_dir, 'horizon', filename)
-        resize_and_convert(img_path, output_path, target_size, convert_grayscale)
+        output_path = os.path.join(val_dir, 'horizon', filename)
+        resize_and_convert(img_path, output_path, target_size)
     
-    # Process space images (no horizon)
-    print("Processing space images (no horizon)...")
-    for img_path in tqdm(train_space):
+    for img_path in test_horizon:
+        filename = os.path.basename(img_path)
+        output_path = os.path.join(test_dir, 'horizon', filename)
+        resize_and_convert(img_path, output_path, target_size)
+    
+    # Process no_horizon images
+    print("Processing no_horizon images...")
+    for img_path in tqdm(train_no_horizon):
         filename = os.path.basename(img_path)
         output_path = os.path.join(train_dir, 'no_horizon', filename)
-        resize_and_convert(img_path, output_path, target_size, convert_grayscale)
+        resize_and_convert(img_path, output_path, target_size)
         
         # Apply augmentations for training set
         if apply_augmentations:
             aug_output_path = os.path.join(train_dir, 'no_horizon', filename)
             apply_augmentation(img_path, aug_output_path, target_size)
     
-    for img_path in val_space:
+    for img_path in val_no_horizon:
         filename = os.path.basename(img_path)
         output_path = os.path.join(val_dir, 'no_horizon', filename)
-        resize_and_convert(img_path, output_path, target_size, convert_grayscale)
+        resize_and_convert(img_path, output_path, target_size)
     
-    for img_path in test_space:
+    for img_path in test_no_horizon:
         filename = os.path.basename(img_path)
         output_path = os.path.join(test_dir, 'no_horizon', filename)
-        resize_and_convert(img_path, output_path, target_size, convert_grayscale)
+        resize_and_convert(img_path, output_path, target_size)
     
     # Print dataset statistics
     print("\nDataset statistics:")
-    print(f"Train: {len(train_horizon)} horizon, {len(train_space)} no_horizon")
-    print(f"Validation: {len(val_horizon)} horizon, {len(val_space)} no_horizon")
-    print(f"Test: {len(test_horizon)} horizon, {len(test_space)} no_horizon")
+    print(f"Train: {len(train_horizon)} horizon, {len(train_no_horizon)} no_horizon")
+    print(f"Validation: {len(val_horizon)} horizon, {len(val_no_horizon)} no_horizon")
+    print(f"Test: {len(test_horizon)} horizon, {len(test_no_horizon)} no_horizon")
     
     if apply_augmentations:
-        print(f"Applied augmentations to training set, creating 5 additional versions of each image (original, rotated, h-flipped, v-flipped, hv-flipped, and brightness/contrast adjusted)")
+        print(f"Applied augmentations to training set, creating 5 additional versions of each image")
+        print(f"Total training images after augmentation: {len(train_horizon) * 6} horizon, {len(train_no_horizon) * 6} no_horizon")
     
     return {
         'train': {
             'horizon': len(train_horizon) * (6 if apply_augmentations else 1),
-            'no_horizon': len(train_space) * (6 if apply_augmentations else 1)
+            'no_horizon': len(train_no_horizon) * (6 if apply_augmentations else 1)
         },
         'val': {
             'horizon': len(val_horizon),
-            'no_horizon': len(val_space)
+            'no_horizon': len(val_no_horizon)
         },
         'test': {
             'horizon': len(test_horizon),
-            'no_horizon': len(test_space)
+            'no_horizon': len(test_no_horizon)
         }
     }
 
@@ -190,19 +204,19 @@ if __name__ == "__main__":
     set_seed(42)
     
     # Define paths
-    raw_data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data', 'raw')
+    classification_sets_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data', 'classification_sets')
     processed_data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data', 'processed', 'horizon_detector')
     
-    # Process the dataset
+    # Process the horizon detection dataset
     stats = process_horizon_dataset(
-        raw_data_dir=raw_data_dir,
+        classification_sets_dir=classification_sets_dir,
         processed_data_dir=processed_data_dir,
-        target_size=(256, 256),
+        target_size=(224, 224),  # As per PRD, use 224x224 or 256x256
         train_split=0.7,
         val_split=0.15,
         test_split=0.15,
-        apply_augmentations=True,
-        convert_grayscale=False  # Keep RGB for now
+        apply_augmentations=True
     )
     
-    print("Data preprocessing completed successfully!")
+    print("Horizon detection dataset preprocessing completed successfully!")
+    print(f"Dataset is ready for training at: {processed_data_dir}")

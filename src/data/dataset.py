@@ -17,8 +17,20 @@ class SatelliteImageDataset(Dataset):
         """
         self.data_dir = data_dir
         self.transform = transform
-        self.classes = sorted([d for d in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, d))])
-        self.class_to_idx = {cls_name: i for i, cls_name in enumerate(self.classes)}
+        self.classes = [d for d in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, d))]
+        
+        # Explicitly map classes to indices according to PRD requirements:
+        # horizon = 1, no_horizon = 0
+        self.class_to_idx = {}
+        for cls_name in self.classes:
+            if cls_name == 'horizon':
+                self.class_to_idx[cls_name] = 1  # Horizon visible = 1
+            elif cls_name == 'no_horizon':
+                self.class_to_idx[cls_name] = 0  # No horizon = 0
+            else:
+                # For any other classes, assign sequential indices starting from 2
+                # This ensures compatibility with other datasets if needed
+                self.class_to_idx[cls_name] = len(self.class_to_idx) + 2
         
         self.samples = []
         for class_name in self.classes:

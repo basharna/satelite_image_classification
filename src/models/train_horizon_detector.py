@@ -8,7 +8,13 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+# Configure matplotlib to use 'Agg' backend for non-interactive environments
+import matplotlib
+matplotlib.use('Agg')  # Must be before importing pyplot
 import matplotlib.pyplot as plt
+import cv2
+from PIL import Image
+from torchvision.utils import make_grid, save_image
 
 # Add the project root directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -63,6 +69,7 @@ def train_model(model, dataloaders, criterion, optimizer, device, num_epochs=25,
             # Iterate over data
             for inputs, labels in tqdm(dataloaders[phase], desc=phase):
                 inputs = inputs.to(device)
+                # Labels: horizon=1, no_horizon=0 (as per PRD requirements)
                 labels = labels.to(device).float().view(-1, 1)  # Convert to float and reshape for BCE loss
                 
                 # Zero the parameter gradients
@@ -153,16 +160,21 @@ def plot_training_history(history, save_dir):
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, 'horizon_detector_training_history.png'))
     plt.close()
+    
+    # Display a message about where to find the saved plots
+    print(f"\nTraining plots saved to {os.path.join(save_dir, 'horizon_detector_training_history.png')}")
 
-def evaluate_model(model, dataloader, criterion, device):
+def evaluate_model(model, dataloader, criterion, device, save_dir=None, num_visualizations=5):
     """
-    Evaluate the model on the test set
+    Evaluate the model on the test set and generate visualizations
     
     Args:
         model: The trained model
         dataloader: Test dataloader
         criterion: Loss function
         device: Device to evaluate on (cuda or cpu)
+        save_dir: Directory to save visualizations
+        num_visualizations: Number of example visualizations to save
         
     Returns:
         test_loss: Average test loss
@@ -171,6 +183,12 @@ def evaluate_model(model, dataloader, criterion, device):
     model.eval()
     running_loss = 0.0
     running_corrects = 0
+    
+    # For visualization
+    if save_dir:
+        create_dir(os.path.join(save_dir, 'visualizations'))
+        vis_count = 0
+        vis_samples = []
     
     # Iterate over data
     for inputs, labels in tqdm(dataloader, desc='Testing'):
@@ -186,6 +204,35 @@ def evaluate_model(model, dataloader, criterion, device):
         # Statistics
         running_loss += loss.item() * inputs.size(0)
         running_corrects += torch.sum(preds == labels.bool())
+        
+        # Save visualizations for correctly predicted horizons
+        if save_dir and vis_count < num_visualizations:
+            for i in range(inputs.size(0)):
+                # Only visualize correctly predicted horizons
+                if preds[i] == 1 and labels[i] == 1 and vis_count < num_visualizations:
+                    # Generate visualization
+                    img_tensor = inputs[i].cpu()
+                    prediction, visualization = model.predict_with_visualization(img_tensor)
+                    
+                    if visualization:
+                        # Save the visualization
+                        vis_path = os.path.join(save_dir, 'visualizations', f'horizon_vis_{vis_count}.png')
+                        visualization.save(vis_path)
+                        print(f"Saved horizon visualization to {vis_path}")
+                        
+                        # Add to samples for grid
+                        vis_np = np.array(visualization)
+                        vis_tensor = torch.from_numpy(vis_np.transpose((2, 0, 1))).float() / 255.0
+                        vis_samples.append(vis_tensor)
+                        
+                        vis_count += 1
+    
+    # Create a grid of visualizations
+    if save_dir and vis_samples:
+        grid = make_grid(vis_samples, nrow=min(5, len(vis_samples)))
+        grid_path = os.path.join(save_dir, 'horizon_visualizations_grid.png')
+        save_image(grid, grid_path)
+        print(f"Saved visualization grid to {grid_path}")
     
     test_loss = running_loss / len(dataloader.dataset)
     test_acc = running_corrects.double() / len(dataloader.dataset)
@@ -208,7 +255,7 @@ def main(args):
     dataloaders = get_data_loaders(data_dir, batch_size=args.batch_size, img_size=args.img_size, num_workers=args.num_workers)
     
     # Create model
-    model = HorizonDetectorModel(in_channels=3)  # 3 channels for RGB images
+    model = HorizonDetectorModel(in_channels=3, img_size=args.img_size)  # 3 channels for RGB images
     model = model.to(device)
     
     # Define loss function and optimizer
@@ -217,6 +264,9 @@ def main(args):
     
     # Train model
     model_save_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'models')
+    results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'results')
+    create_dir(results_dir)
+    
     model, history = train_model(
         model=model,
         dataloaders={'train': dataloaders['train'], 'val': dataloaders['val']},
@@ -227,30 +277,37 @@ def main(args):
         save_dir=model_save_dir
     )
     
-    # Evaluate model on test set
+    # Plot training history
+    plot_training_history(history, results_dir)
+    
+    # Evaluate model on test set and generate visualizations
     test_loss, test_acc = evaluate_model(
         model=model,
         dataloader=dataloaders['test'],
         criterion=criterion,
-        device=device
+        device=device,
+        save_dir=results_dir,
+        num_visualizations=args.num_visualizations
     )
     
     print(f"Final test accuracy: {test_acc:.4f}")
     
     # Save test results
-    with open(os.path.join(model_save_dir, 'horizon_detector_test_results.txt'), 'w') as f:
+    with open(os.path.join(results_dir, 'horizon_detector_test_results.txt'), 'w') as f:
         f.write(f"Test Loss: {test_loss:.4f}\n")
         f.write(f"Test Accuracy: {test_acc:.4f}\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train Horizon Detector Model')
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training')
-    parser.add_argument('--img_size', type=int, default=256, help='Image size for resizing')
+    parser.add_argument('--img_size', type=int, default=224, help='Image size for resizing (224 or 256 as per PRD)')
     parser.add_argument('--num_epochs', type=int, default=20, help='Number of epochs to train for')
     parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate')
     parser.add_argument('--weight_decay', type=float, default=1e-4, help='Weight decay for regularization')
     parser.add_argument('--num_workers', type=int, default=4, help='Number of workers for data loading')
     parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducibility')
+    parser.add_argument('--num_visualizations', type=int, default=10, help='Number of horizon visualizations to generate')
     
     args = parser.parse_args()
     main(args)
+
