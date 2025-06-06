@@ -42,8 +42,8 @@ class HorizonDetectorModel(nn.Module):
         self.flat_features = 128 * feature_size * feature_size
         
         # Classification layers
-        # First fully connected layer will be initialized in the forward pass
-        self.fc1 = None
+        # Calculate the input features for the first fully connected layer
+        self.fc1 = nn.Linear(self.flat_features, 512)
         self.dropout1 = nn.Dropout(0.5)
         self.fc2 = nn.Linear(512, 128)
         self.dropout2 = nn.Dropout(0.3)
@@ -70,14 +70,6 @@ class HorizonDetectorModel(nn.Module):
         # Flatten
         batch_size = x4.size(0)
         x_flat = x4.view(batch_size, -1)
-        
-        # Initialize fc1 if it's the first forward pass
-        if self.fc1 is None:
-            in_features = x_flat.size(1)
-            self.fc1 = nn.Linear(in_features, 512).to(x.device)
-            # Also update fc2 and fc3 to match the device
-            self.fc2 = self.fc2.to(x.device)
-            self.fc3 = self.fc3.to(x.device)
         
         # Classification
         x_fc1 = F.relu(self.fc1(x_flat))
