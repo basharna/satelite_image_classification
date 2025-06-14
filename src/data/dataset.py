@@ -92,7 +92,7 @@ class SatelliteImageDataset(Dataset):
             
             return image, label
 
-def get_data_loaders(data_dir, batch_size=32, img_size=256, num_workers=4):
+def get_data_loaders(data_dir, batch_size=32, img_size=256, num_workers=4, augment_quality=False):
     """
     Create data loaders for training, validation, and testing
     
@@ -101,20 +101,40 @@ def get_data_loaders(data_dir, batch_size=32, img_size=256, num_workers=4):
         batch_size (int): Batch size for data loaders
         img_size (int): Size to resize images to
         num_workers (int): Number of workers for data loading
+        augment_quality (bool): If True, apply quality-specific augmentations
         
     Returns:
         dict: Dictionary containing train, val, and test data loaders
     """
-    # Define transforms
-    train_transform = transforms.Compose([
-        transforms.Resize((img_size, img_size)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
-        transforms.RandomRotation(30),  # Increased rotation range from 10 to 30 degrees
-        transforms.ColorJitter(brightness=0.1, contrast=0.1),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
+    # Define transforms based on the data type we're working with
+    if augment_quality:
+        # Enhanced augmentations for quality detection
+        train_transform = transforms.Compose([
+            transforms.Resize((img_size, img_size)),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(),
+            transforms.RandomRotation(30),
+            # Enhanced color jittering for quality detection
+            transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+            # Add specific adjustments for quality training
+            transforms.RandomAdjustSharpness(sharpness_factor=2.0, p=0.5),  # Random sharpness
+            transforms.RandomAutocontrast(p=0.3),  # Random contrast adjustment
+            # Occasionally blur images to simulate poor quality
+            transforms.RandomApply([transforms.GaussianBlur(kernel_size=5)], p=0.2),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+    else:
+        # Standard transforms for other detectors
+        train_transform = transforms.Compose([
+            transforms.Resize((img_size, img_size)),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(),
+            transforms.RandomRotation(30),  # Increased rotation range from 10 to 30 degrees
+            transforms.ColorJitter(brightness=0.1, contrast=0.1),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
     
     val_test_transform = transforms.Compose([
         transforms.Resize((img_size, img_size)),
