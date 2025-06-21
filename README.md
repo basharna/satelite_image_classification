@@ -1,4 +1,6 @@
 # 🛰️ Satellite Image Classification System
+![image_alt](https://github.com/basharna/satelite_image_classification/blob/main/img.jpg)
+
 
 A system that classifies satellite images into three categories and prepares them for transmission:
 1. Horizon detection
