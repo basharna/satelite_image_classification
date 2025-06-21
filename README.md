@@ -12,7 +12,7 @@ The system provides both individual detectors for each feature and a unified pip
 
 ```
 sateliite_image_classification/
-├── dataset/
+├── data/
 │   ├── raw/                      # Original, untouched data (for archiving)
 │   │   ├── earth/
 │   │   ├── horizon/
@@ -65,7 +65,10 @@ sateliite_image_classification/
 ## 🔧 Installation
 
 1. Clone the repository
-2. Install dependencies:
+2. Download the data and models folders from [Google Drive](https://drive.google.com/drive/folders/1kvjjSlnMD-H9OYWsSSz7jtxZ4eFrjP-6?usp=sharing)
+   - This link includes both the raw dataset (which needs to be preprocessed) and the trained models
+   - Place the downloaded folders in the root directory as `data/` and `models/`
+3. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
@@ -81,7 +84,7 @@ The preprocessing pipeline prepares the raw satellite images for training by:
 ### Preprocessing Commands
 
 ```bash
-# Process horizon detection dataset
+# Process the raw dataset
 python src/data/preprocess.py
 ```
 
