@@ -1,0 +1,17 @@
+#Good Image
+python -m src.models.unified_classifier --image_path data/processed/horizon_detector/test/horizon/B3_ER_640x480_5_hflip.jpg --visualize 
+
+#Bad Image With Flare
+python -m src.models.unified_classifier --image_path data/processed/horizon_detector/test/no_horizon/B3_SB_320x240_12.jpg --visualize 
+
+#Bad Quality with Flare and Horizon
+python -m src.models.unified_classifier --image_path data/processed/quality_detector/test/bad/B3_HZ_320x240_25_hflip.jpg --visualize
+
+#Good Image With No Horizon
+python -m src.models.unified_classifier --image_path data/processed/horizon_detector/test/no_horizon/B3_ER_320x240_80.jpg --visualize 
+
+#Horizon Predection
+python -m src.detection.horizon_evaluation --image_path data/processed/horizon_detector/test/horizon/B3_ER_640x480_5_hflip.jpg --show 
+
+#No Horizon Predection
+python -m src.detection.horizon_evaluation --image_path data/processed/horizon_detector/test/no_horizon/B4_SB_640x480_48_complete.jpg --show 

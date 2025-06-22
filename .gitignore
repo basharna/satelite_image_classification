@@ -67,19 +67,12 @@ coverage.xml
 !/src/data/
 datasets/
 *.csv
-*.jpg
-*.jpeg
-*.png
 *.tif
 *.tiff
 *.h5
 *.hdf5
 *.npy
 *.npz
-# Except example images
-!examples/*.jpg
-!examples/*.jpeg
-!examples/*.png
 
 # Model files
 /models/
@@ -107,5 +100,3 @@ Thumbs.db
 
 # Specific to this project
 compressed_images/
-results/
-temp/
