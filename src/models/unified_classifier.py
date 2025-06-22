@@ -14,7 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 # Import the detector models
 from src.models.horizon_detector import HorizonDetectorModel
 from src.models.flare_detector import FlareDetectorModel
-from src.quality.quality_evaluation import QualityEvaluator
+from src.detection.quality_evaluation import QualityEvaluator
 from src.compression.compress import compress_image  # Assuming this function exists
 
 class SatelliteImageClassifier:
